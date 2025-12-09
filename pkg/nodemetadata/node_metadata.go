@@ -29,6 +29,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 
 	"sigs.k8s.io/scheduler-plugins/apis/config"
+	"sigs.k8s.io/scheduler-plugins/apis/config/validation"
 )
 
 // NodeMetadata is a plugin that scores nodes based on their metadata (labels or annotations)
@@ -199,7 +200,7 @@ func New(ctx context.Context, obj runtime.Object, h framework.Handle) (framework
 	}
 
 	// Validate arguments
-	if err := validateArgs(args); err != nil {
+	if err := validation.ValidateNodeMetadataArgs(args, nil); err != nil {
 		return nil, fmt.Errorf("invalid NodeMetadataArgs: %w", err)
 	}
 
@@ -208,35 +209,4 @@ func New(ctx context.Context, obj runtime.Object, h framework.Handle) (framework
 		handle: h,
 		args:   args,
 	}, nil
-}
-
-// validateArgs validates the plugin arguments
-func validateArgs(args *config.NodeMetadataArgs) error {
-	if args.MetadataKey == "" {
-		return fmt.Errorf("metadataKey cannot be empty")
-	}
-
-	if args.MetadataSource != config.MetadataSourceLabel && args.MetadataSource != config.MetadataSourceAnnotation {
-		return fmt.Errorf("metadataSource must be either %q or %q", config.MetadataSourceLabel, config.MetadataSourceAnnotation)
-	}
-
-	if args.MetadataType != config.MetadataTypeNumber && args.MetadataType != config.MetadataTypeTimestamp {
-		return fmt.Errorf("metadataType must be either %q or %q", config.MetadataTypeNumber, config.MetadataTypeTimestamp)
-	}
-
-	// Validate scoring strategy based on metadata type
-	if args.MetadataType == config.MetadataTypeNumber {
-		if args.ScoringStrategy != config.ScoringStrategyHighest && args.ScoringStrategy != config.ScoringStrategyLowest {
-			return fmt.Errorf("for numeric metadata, scoringStrategy must be either %q or %q", config.ScoringStrategyHighest, config.ScoringStrategyLowest)
-		}
-	} else if args.MetadataType == config.MetadataTypeTimestamp {
-		if args.ScoringStrategy != config.ScoringStrategyNewest && args.ScoringStrategy != config.ScoringStrategyOldest {
-			return fmt.Errorf("for timestamp metadata, scoringStrategy must be either %q or %q", config.ScoringStrategyNewest, config.ScoringStrategyOldest)
-		}
-		if args.TimestampFormat == "" {
-			return fmt.Errorf("timestampFormat cannot be empty when metadataType is %q", config.MetadataTypeTimestamp)
-		}
-	}
-
-	return nil
 }
